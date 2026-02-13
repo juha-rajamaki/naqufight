@@ -710,9 +710,13 @@ const Game = {
                 Renderer.updateAndDrawParticles(ctx);
                 Renderer.drawFightUI(ctx, this.player, this.opponent, this.roundTimer, this.frameCount);
                 const roundWinner = this.player.health > this.opponent.health ? this.player : this.opponent;
-                const subtext = this.stateTimer > 60 && Math.floor(this.frameCount / 30) % 2 === 0
-                    ? 'Press ENTER to continue' : `Round ${this.currentRound}`;
-                Renderer.drawAnnouncement(ctx, `${roundWinner.data.displayName} WINS`, subtext, this.frameCount);
+                Renderer.drawAnnouncement(ctx, `${roundWinner.data.displayName} WINS`, `Round ${this.currentRound}`, this.frameCount);
+                if (this.stateTimer > 60 && Math.floor(this.frameCount / 30) % 2 === 0) {
+                    ctx.fillStyle = '#CCC';
+                    ctx.font = '20px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Press ENTER to continue', 400, 380);
+                }
                 break;
             }
 
