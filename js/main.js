@@ -744,4 +744,7 @@ const Game = {
 // ========================
 // START
 // ========================
-window.addEventListener('load', () => Game.init());
+window.addEventListener('load', () => {
+    TTS.init();
+    Game.init();
+});

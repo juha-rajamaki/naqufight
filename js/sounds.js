@@ -7,6 +7,17 @@ const TTS = {
         const pickVoice = () => {
             const voices = speechSynthesis.getVoices();
             if (!voices.length) return;
+
+            // Priority 1: Piper voices (from Chrome extension)
+            const piper = voices.find(v => /piper/i.test(v.name) && v.lang.startsWith('en'));
+            if (piper) {
+                this.voice = piper;
+                console.log('TTS: Using Piper voice:', piper.name);
+                this.ready = true;
+                return;
+            }
+
+            // Priority 2: Known good deep male voices
             const preferred = [
                 'microsoft mark', 'google uk english male', 'microsoft david',
                 'microsoft james', 'daniel', 'alex', 'google us english'
@@ -15,11 +26,16 @@ const TTS = {
                 const match = voices.find(v => v.name.toLowerCase().includes(pref));
                 if (match) { this.voice = match; break; }
             }
+
+            // Priority 3: Any English male, then any English, then first available
             if (!this.voice) {
                 this.voice = voices.find(v => v.lang.startsWith('en') && /male/i.test(v.name))
                           || voices.find(v => v.lang.startsWith('en'))
                           || voices[0];
             }
+
+            console.log('TTS: Using voice:', this.voice ? this.voice.name : 'default');
+            console.log('TTS: All voices:', voices.map(v => v.name).join(', '));
             this.ready = true;
         };
         pickVoice();
@@ -28,6 +44,7 @@ const TTS = {
 
     speak(text, rate) {
         if (!window.speechSynthesis) return;
+        if (!this.ready) TTS.init();
         speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(text);
         if (this.voice) utter.voice = this.voice;
