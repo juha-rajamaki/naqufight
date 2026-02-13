@@ -14,8 +14,8 @@ var TTS = {
             console.log('=== TTS VOICES AVAILABLE ===');
             voices.forEach((v, i) => console.log(`  [${i}] ${v.name} (${v.lang})`));
 
-            // Priority 1: Preferred voice at index 15
-            if (voices[15]) {
+            // Priority 1: Preferred voice at index 1
+            if (voices[1]) {
                 this.voice = voices[15];
                 console.log('TTS SELECTED (preferred):', this.voice.name);
                 this.ready = true;
