@@ -1,41 +1,46 @@
 const TTS = {
     voice: null,
     ready: false,
+    allVoices: [],
 
     init() {
         if (!window.speechSynthesis) return;
         const pickVoice = () => {
             const voices = speechSynthesis.getVoices();
             if (!voices.length) return;
+            this.allVoices = voices;
+
+            // Log ALL available voices so user can see them in console
+            console.log('=== TTS VOICES AVAILABLE ===');
+            voices.forEach((v, i) => console.log(`  [${i}] ${v.name} (${v.lang})`));
 
             // Priority 1: Piper voices (from Chrome extension)
             const piper = voices.find(v => /piper/i.test(v.name) && v.lang.startsWith('en'));
             if (piper) {
                 this.voice = piper;
-                console.log('TTS: Using Piper voice:', piper.name);
+                console.log('TTS SELECTED: Piper voice:', piper.name);
                 this.ready = true;
                 return;
             }
 
-            // Priority 2: Known good deep male voices
+            // Priority 2: Known deep/dramatic voices
             const preferred = [
                 'microsoft mark', 'google uk english male', 'microsoft david',
-                'microsoft james', 'daniel', 'alex', 'google us english'
+                'microsoft james', 'microsoft guy', 'microsoft ryan',
+                'daniel', 'alex', 'google us english'
             ];
             for (const pref of preferred) {
                 const match = voices.find(v => v.name.toLowerCase().includes(pref));
                 if (match) { this.voice = match; break; }
             }
 
-            // Priority 3: Any English male, then any English, then first available
+            // Priority 3: Any English voice
             if (!this.voice) {
-                this.voice = voices.find(v => v.lang.startsWith('en') && /male/i.test(v.name))
-                          || voices.find(v => v.lang.startsWith('en'))
+                this.voice = voices.find(v => v.lang.startsWith('en'))
                           || voices[0];
             }
 
-            console.log('TTS: Using voice:', this.voice ? this.voice.name : 'default');
-            console.log('TTS: All voices:', voices.map(v => v.name).join(', '));
+            console.log('TTS SELECTED:', this.voice ? this.voice.name : 'default');
             this.ready = true;
         };
         pickVoice();
@@ -46,12 +51,21 @@ const TTS = {
         if (!window.speechSynthesis) return;
         if (!this.ready) TTS.init();
         speechSynthesis.cancel();
-        const utter = new SpeechSynthesisUtterance(text.toUpperCase());
+        const utter = new SpeechSynthesisUtterance(text);
         if (this.voice) utter.voice = this.voice;
-        utter.rate = rate || 0.75;
+        utter.rate = rate || 0.8;
         utter.pitch = 0.1;
         utter.volume = 1.0;
         speechSynthesis.speak(utter);
+    },
+
+    // Let user pick voice by index from console: TTS.setVoice(3)
+    setVoice(index) {
+        if (this.allVoices[index]) {
+            this.voice = this.allVoices[index];
+            console.log('TTS voice set to:', this.voice.name);
+            this.speak('Naqu Fight');
+        }
     }
 };
 
