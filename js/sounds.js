@@ -46,10 +46,10 @@ const TTS = {
         if (!window.speechSynthesis) return;
         if (!this.ready) TTS.init();
         speechSynthesis.cancel();
-        const utter = new SpeechSynthesisUtterance(text);
+        const utter = new SpeechSynthesisUtterance(text.toUpperCase());
         if (this.voice) utter.voice = this.voice;
-        utter.rate = rate || 0.9;
-        utter.pitch = 0.7;
+        utter.rate = rate || 0.75;
+        utter.pitch = 0.1;
         utter.volume = 1.0;
         speechSynthesis.speak(utter);
     }
