@@ -1,4 +1,4 @@
-const TTS = {
+var TTS = {
     voice: null,
     ready: false,
     allVoices: [],
