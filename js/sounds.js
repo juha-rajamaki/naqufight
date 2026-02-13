@@ -1,12 +1,40 @@
 const TTS = {
+    voice: null,
+    ready: false,
+
+    init() {
+        if (!window.speechSynthesis) return;
+        const pickVoice = () => {
+            const voices = speechSynthesis.getVoices();
+            if (!voices.length) return;
+            const preferred = [
+                'microsoft mark', 'google uk english male', 'microsoft david',
+                'microsoft james', 'daniel', 'alex', 'google us english'
+            ];
+            for (const pref of preferred) {
+                const match = voices.find(v => v.name.toLowerCase().includes(pref));
+                if (match) { this.voice = match; break; }
+            }
+            if (!this.voice) {
+                this.voice = voices.find(v => v.lang.startsWith('en') && /male/i.test(v.name))
+                          || voices.find(v => v.lang.startsWith('en'))
+                          || voices[0];
+            }
+            this.ready = true;
+        };
+        pickVoice();
+        speechSynthesis.onvoiceschanged = () => pickVoice();
+    },
+
     speak(text, rate) {
         if (!window.speechSynthesis) return;
-        window.speechSynthesis.cancel();
+        speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(text);
-        utter.rate = rate || 1.0;
-        utter.pitch = 0.8;
+        if (this.voice) utter.voice = this.voice;
+        utter.rate = rate || 0.9;
+        utter.pitch = 0.7;
         utter.volume = 1.0;
-        window.speechSynthesis.speak(utter);
+        speechSynthesis.speak(utter);
     }
 };
 
@@ -324,6 +352,7 @@ const SFX = {
     init() {
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         Music.init(this.ctx);
+        TTS.init();
     },
 
     ensure() {
