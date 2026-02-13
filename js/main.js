@@ -577,7 +577,8 @@ const Game = {
     updateRoundEnd() {
         this.stateTimer++;
 
-        if (this.stateTimer > 90) {
+        // Wait at least 60 frames, then require Enter to continue
+        if (this.stateTimer > 60 && this.justPressed('Enter')) {
             const matchWinner = this.player.roundWins >= 2 ? this.player :
                                this.opponent.roundWins >= 2 ? this.opponent : null;
 
@@ -600,6 +601,7 @@ const Game = {
                 }
                 this.stateTimer = 0;
             } else {
+                SFX.menuConfirm();
                 this.currentRound++;
                 this.startRound();
             }
@@ -708,7 +710,9 @@ const Game = {
                 Renderer.updateAndDrawParticles(ctx);
                 Renderer.drawFightUI(ctx, this.player, this.opponent, this.roundTimer, this.frameCount);
                 const roundWinner = this.player.health > this.opponent.health ? this.player : this.opponent;
-                Renderer.drawAnnouncement(ctx, `${roundWinner.data.displayName} WINS`, `Round ${this.currentRound}`, this.frameCount);
+                const subtext = this.stateTimer > 60 && Math.floor(this.frameCount / 30) % 2 === 0
+                    ? 'Press ENTER to continue' : `Round ${this.currentRound}`;
+                Renderer.drawAnnouncement(ctx, `${roundWinner.data.displayName} WINS`, subtext, this.frameCount);
                 break;
             }
 
