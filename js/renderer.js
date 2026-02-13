@@ -381,6 +381,128 @@ const Renderer = {
     },
 
     // ========================
+    // VS SCREEN
+    // ========================
+    drawVsScreen(ctx, player, opponent, timer) {
+        // Dark background
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(0, 0, 800, 600);
+
+        // Dramatic red diagonal split
+        ctx.fillStyle = '#CC0000';
+        ctx.beginPath();
+        ctx.moveTo(395, 0);
+        ctx.lineTo(405, 0);
+        ctx.lineTo(405, 600);
+        ctx.lineTo(395, 600);
+        ctx.fill();
+
+        // Slide-in animation
+        const slideProgress = Math.min(1, timer / 30);
+        const leftX = -200 + 200 * slideProgress;
+        const rightX = 800 - 200 * slideProgress;
+
+        // Player side (left) - dark tint
+        ctx.fillStyle = 'rgba(20, 20, 40, 0.8)';
+        ctx.fillRect(0, 0, 400, 600);
+
+        // Opponent side (right) - dark red tint
+        ctx.fillStyle = 'rgba(40, 10, 10, 0.8)';
+        ctx.fillRect(400, 0, 400, 600);
+
+        // Player photo
+        const pImg = this.characterImages[player.charName];
+        if (pImg) {
+            const size = 180;
+            const px = leftX + 110;
+            const py = 150;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(px + size / 2, py + size / 2, size / 2, 0, Math.PI * 2);
+            ctx.clip();
+            if (pImg instanceof HTMLCanvasElement) {
+                ctx.drawImage(pImg, px, py, size, size);
+            } else {
+                const aspect = pImg.width / pImg.height;
+                let sx = 0, sy = 0, sw = pImg.width, sh = pImg.height;
+                if (aspect > 1) { sx = (pImg.width - pImg.height) / 2; sw = pImg.height; }
+                else { sy = (pImg.height - pImg.width) / 2; sh = pImg.width; }
+                ctx.drawImage(pImg, sx, sy, sw, sh, px, py, size, size);
+            }
+            ctx.restore();
+            // Border
+            ctx.strokeStyle = player.data.colors.outline || '#FFF';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(px + size / 2, py + size / 2, size / 2, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Opponent photo
+        const oImg = this.characterImages[opponent.charName];
+        if (oImg) {
+            const size = 180;
+            const ox = rightX + 10;
+            const oy = 150;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(ox + size / 2, oy + size / 2, size / 2, 0, Math.PI * 2);
+            ctx.clip();
+            if (oImg instanceof HTMLCanvasElement) {
+                ctx.drawImage(oImg, ox, oy, size, size);
+            } else {
+                const aspect = oImg.width / oImg.height;
+                let sx = 0, sy = 0, sw = oImg.width, sh = oImg.height;
+                if (aspect > 1) { sx = (oImg.width - oImg.height) / 2; sw = oImg.height; }
+                else { sy = (oImg.height - oImg.width) / 2; sh = oImg.width; }
+                ctx.drawImage(oImg, sx, sy, sw, sh, ox, oy, size, size);
+            }
+            ctx.restore();
+            ctx.strokeStyle = opponent.data.colors.outline || '#FFF';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(ox + size / 2, oy + size / 2, size / 2, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Player name
+        ctx.fillStyle = '#FFF';
+        ctx.font = 'bold 28px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(player.data.displayName, leftX + 200, 380);
+
+        // Opponent name
+        ctx.fillText(opponent.data.displayName, rightX + 100, 380);
+
+        // VS text (pulsing)
+        const vsScale = 1 + Math.sin(timer * 0.1) * 0.1;
+        ctx.save();
+        ctx.translate(400, 260);
+        ctx.scale(vsScale, vsScale);
+        ctx.fillStyle = '#CC0000';
+        ctx.font = 'bold 72px Arial';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#FF0000';
+        ctx.shadowBlur = 20;
+        ctx.fillText('VS', 0, 0);
+        ctx.shadowBlur = 0;
+        ctx.restore();
+
+        // Special move names
+        ctx.fillStyle = '#FFD700';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(player.data.specialName, leftX + 200, 410);
+        ctx.fillText(opponent.data.specialName, rightX + 100, 410);
+
+        // Round info at bottom
+        ctx.fillStyle = '#888';
+        ctx.font = '16px Arial';
+        ctx.fillText(`Wins: ${player.roundWins}`, leftX + 200, 500);
+        ctx.fillText(`Wins: ${opponent.roundWins}`, rightX + 100, 500);
+    },
+
+    // ========================
     // FIGHT ANNOUNCEMENTS
     // ========================
     drawAnnouncement(ctx, text, subtext, frameCount) {

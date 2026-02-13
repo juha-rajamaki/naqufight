@@ -247,15 +247,21 @@ const Game = {
 
     updateRoundStart() {
         this.stateTimer++;
+        // Phase 1: VS screen (frames 1-120)
         if (this.stateTimer === 1) {
+            TTS.speak(`${this.player.data.displayName} versus ${this.opponent.data.displayName}`);
+        }
+        // Phase 2: Round number (frames 121-170)
+        if (this.stateTimer === 121) {
             SFX.roundStart();
             TTS.speak(`Round ${this.currentRound}`);
         }
-        if (this.stateTimer === 50) {
+        // Phase 3: FIGHT! (frames 171-210)
+        if (this.stateTimer === 171) {
             SFX.fight();
             TTS.speak('Fight!', 1.2);
         }
-        if (this.stateTimer > 90) {
+        if (this.stateTimer > 210) {
             this.state = GameState.FIGHT;
         }
     },
@@ -671,15 +677,20 @@ const Game = {
                 break;
 
             case GameState.ROUND_START:
-                Renderer.drawArena(ctx, this.frameCount);
-                this.player.draw(ctx);
-                this.opponent.draw(ctx);
-                Renderer.drawFightUI(ctx, this.player, this.opponent, this.roundTimer, this.frameCount);
-
-                if (this.stateTimer < 50) {
-                    Renderer.drawAnnouncement(ctx, `ROUND ${this.currentRound}`, null, this.frameCount);
+                if (this.stateTimer <= 120) {
+                    // VS screen
+                    Renderer.drawVsScreen(ctx, this.player, this.opponent, this.stateTimer);
                 } else {
-                    Renderer.drawAnnouncement(ctx, 'FIGHT!', null, this.frameCount);
+                    Renderer.drawArena(ctx, this.frameCount);
+                    this.player.draw(ctx);
+                    this.opponent.draw(ctx);
+                    Renderer.drawFightUI(ctx, this.player, this.opponent, this.roundTimer, this.frameCount);
+
+                    if (this.stateTimer < 171) {
+                        Renderer.drawAnnouncement(ctx, `ROUND ${this.currentRound}`, null, this.frameCount);
+                    } else {
+                        Renderer.drawAnnouncement(ctx, 'FIGHT!', null, this.frameCount);
+                    }
                 }
                 break;
 
