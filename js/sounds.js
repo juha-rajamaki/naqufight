@@ -14,16 +14,15 @@ var TTS = {
             console.log('=== TTS VOICES AVAILABLE ===');
             voices.forEach((v, i) => console.log(`  [${i}] ${v.name} (${v.lang})`));
 
-            // Priority 1: Piper voices (from Chrome extension)
-            const piper = voices.find(v => /piper/i.test(v.name) && v.lang.startsWith('en'));
-            if (piper) {
-                this.voice = piper;
-                console.log('TTS SELECTED: Piper voice:', piper.name);
+            // Priority 1: Preferred voice at index 15
+            if (voices[15]) {
+                this.voice = voices[15];
+                console.log('TTS SELECTED (preferred):', this.voice.name);
                 this.ready = true;
                 return;
             }
 
-            // Priority 2: Known deep/dramatic voices
+            // Fallback: Known deep/dramatic voices
             const preferred = [
                 'microsoft mark', 'google uk english male', 'microsoft david',
                 'microsoft james', 'microsoft guy', 'microsoft ryan',
@@ -34,7 +33,6 @@ var TTS = {
                 if (match) { this.voice = match; break; }
             }
 
-            // Priority 3: Any English voice
             if (!this.voice) {
                 this.voice = voices.find(v => v.lang.startsWith('en'))
                           || voices[0];
