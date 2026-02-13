@@ -511,12 +511,17 @@ const Game = {
             return;
         }
 
-        // Winner can still move and attack
+        // Phase 1: Dramatic pause (first 3 seconds) — nobody moves
+        if (this.stateTimer < 180) {
+            return;
+        }
+
+        // Phase 2: Winner can now move and attack
         if (winner === this.player) {
             this.handlePlayerInput();
         } else {
-            // AI finishes the player after a brief pause
-            if (this.stateTimer > 60) {
+            // AI finishes the player after a brief extra pause
+            if (this.stateTimer > 210) {
                 winner.updateAI(loser);
             }
         }
@@ -549,8 +554,8 @@ const Game = {
             }
         }
 
-        // Timeout: if winner doesn't finish in 8 seconds, end round anyway
-        if (this.stateTimer > 480) {
+        // Timeout: if winner doesn't finish in 10 seconds, end round anyway
+        if (this.stateTimer > 600) {
             this.endRound(winner);
         }
     },
