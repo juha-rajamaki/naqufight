@@ -96,15 +96,15 @@ const Renderer = {
 
         // Title
         ctx.fillStyle = '#CC0000';
-        ctx.font = 'bold 36px Arial';
+        ctx.font = 'bold 32px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('CHOOSE YOUR FIGHTER', 400, 50);
+        ctx.fillText('CHOOSE YOUR FIGHTER', 400, 45);
 
         // Character grid (4x2)
         const gridX = 80;
-        const gridY = 80;
+        const gridY = 60;
         const cellW = 160;
-        const cellH = 180;
+        const cellH = 165;
         const padding = 8;
 
         CHARACTER_LIST.forEach((name, i) => {
@@ -117,7 +117,6 @@ const Renderer = {
 
             // Cell background
             if (isSelected) {
-                // Animated selection border
                 ctx.strokeStyle = '#FF0000';
                 ctx.lineWidth = 3;
                 const pulse = Math.sin(frameCount * 0.1) * 2;
@@ -134,7 +133,6 @@ const Renderer = {
                 const imgSize = cellW - padding - 20;
                 const imgX = cx + 10;
                 const imgY = cy + 8;
-                // Draw image as square, cropped to center
                 ctx.save();
                 ctx.beginPath();
                 ctx.rect(imgX, imgY, imgSize, imgSize - 20);
@@ -142,7 +140,6 @@ const Renderer = {
                 if (img instanceof HTMLCanvasElement) {
                     ctx.drawImage(img, imgX, imgY, imgSize, imgSize - 20);
                 } else {
-                    // Center-crop the image
                     const aspect = img.width / img.height;
                     let sx = 0, sy = 0, sw = img.width, sh = img.height;
                     if (aspect > 1) {
@@ -159,64 +156,100 @@ const Renderer = {
 
             // Character name
             ctx.fillStyle = isSelected ? '#FF4444' : '#CCC';
-            ctx.font = isSelected ? 'bold 16px Arial' : '14px Arial';
+            ctx.font = isSelected ? 'bold 15px Arial' : '13px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(CHARACTER_DATA[name].displayName, cx + (cellW - padding) / 2, cy + cellH - padding - 8);
+            ctx.fillText(CHARACTER_DATA[name].displayName, cx + (cellW - padding) / 2, cy + cellH - padding - 6);
         });
 
-        // Selected character stats preview
+        // Bottom panel: stats (left) + controls (right)
         const selChar = CHARACTER_DATA[CHARACTER_LIST[selectedIndex]];
-        const statsX = 80;
-        const statsY = 460;
+        const panelY = 398;
+        const panelH = 195;
 
         ctx.fillStyle = 'rgba(30, 30, 30, 0.9)';
-        ctx.fillRect(statsX, statsY, 640, 120);
+        ctx.fillRect(80, panelY, 640, panelH);
         ctx.strokeStyle = '#CC0000';
         ctx.lineWidth = 1;
-        ctx.strokeRect(statsX, statsY, 640, 120);
+        ctx.strokeRect(80, panelY, 640, panelH);
 
-        // Character name
+        // Divider line
+        ctx.strokeStyle = '#444';
+        ctx.beginPath();
+        ctx.moveTo(420, panelY + 8);
+        ctx.lineTo(420, panelY + panelH - 8);
+        ctx.stroke();
+
+        // === LEFT SIDE: Character stats ===
         ctx.fillStyle = selChar.colors.accent || '#FFF';
-        ctx.font = 'bold 22px Arial';
+        ctx.font = 'bold 20px Arial';
         ctx.textAlign = 'left';
-        ctx.fillText(selChar.displayName, statsX + 15, statsY + 28);
+        ctx.fillText(selChar.displayName, 95, panelY + 25);
 
-        // Special move
         ctx.fillStyle = '#FFD700';
-        ctx.font = '14px Arial';
-        ctx.fillText(`Special: ${selChar.specialName} - ${selChar.specialDescription}`, statsX + 15, statsY + 50);
+        ctx.font = '12px Arial';
+        ctx.fillText(`Special: ${selChar.specialName}`, 95, panelY + 43);
+        ctx.fillStyle = '#999';
+        ctx.font = '11px Arial';
+        ctx.fillText(selChar.specialDescription, 95, panelY + 58);
 
         // Stat bars
         const stats = [
-            { label: 'HEALTH', value: selChar.health / 130, color: '#44CC44' },
-            { label: 'SPEED', value: selChar.speed / 7, color: '#44AACC' },
-            { label: 'POWER', value: selChar.attackMultiplier / 1.3, color: '#CC4444' },
-            { label: 'JUMP', value: selChar.jumpPower / 15, color: '#CCCC44' }
+            { label: 'HEALTH', value: selChar.health / 140, color: '#44CC44' },
+            { label: 'SPEED', value: selChar.speed / 8, color: '#44AACC' },
+            { label: 'POWER', value: selChar.attackMultiplier / 1.5, color: '#CC4444' },
+            { label: 'JUMP', value: selChar.jumpPower / 18, color: '#CCCC44' }
         ];
 
         stats.forEach((stat, i) => {
-            const sx = statsX + 15 + i * 155;
-            const sy = statsY + 70;
+            const sx = 95;
+            const sy = panelY + 75 + i * 26;
 
             ctx.fillStyle = '#888';
-            ctx.font = '11px Arial';
+            ctx.font = '10px Arial';
             ctx.textAlign = 'left';
             ctx.fillText(stat.label, sx, sy);
 
-            // Bar background
             ctx.fillStyle = '#333';
-            ctx.fillRect(sx, sy + 5, 130, 12);
-
-            // Bar fill
+            ctx.fillRect(sx + 55, sy - 8, 240, 12);
             ctx.fillStyle = stat.color;
-            ctx.fillRect(sx, sy + 5, 130 * stat.value, 12);
+            ctx.fillRect(sx + 55, sy - 8, 240 * Math.min(1, stat.value), 12);
         });
 
-        // Controls hint
-        ctx.fillStyle = '#666';
-        ctx.font = '13px Arial';
+        // === RIGHT SIDE: Controls ===
+        ctx.fillStyle = '#CC0000';
+        ctx.font = 'bold 14px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('Arrow Keys / WASD to select  |  ENTER to confirm', 400, 595);
+        ctx.fillText('CONTROLS', 560, panelY + 20);
+
+        const controls = [
+            ['MOVE', 'A/D or LEFT/RIGHT'],
+            ['JUMP', 'W or UP'],
+            ['CROUCH', 'S or DOWN'],
+            ['HIGH PUNCH', 'H'],
+            ['LOW PUNCH', 'N'],
+            ['HIGH KICK', 'K'],
+            ['LOW KICK', 'M'],
+            ['UPPERCUT', 'H + N'],
+            ['SPECIAL', 'K + M'],
+            ['BLOCK', 'J (hold)'],
+        ];
+
+        ctx.font = '11px Arial';
+        controls.forEach((c, i) => {
+            const cy = panelY + 38 + i * 15;
+            ctx.fillStyle = '#FFD700';
+            ctx.textAlign = 'right';
+            ctx.fillText(c[0], 540, cy);
+            ctx.fillStyle = '#CCC';
+            ctx.textAlign = 'left';
+            ctx.fillText(c[1], 548, cy);
+        });
+
+        // Footer
+        ctx.fillStyle = '#555';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('ARROWS/WASD: Select  |  ENTER: Confirm  |  +/-: Music Volume', 400, 598);
     },
 
     // ========================
@@ -791,13 +824,13 @@ const Renderer = {
             ['MOVE LEFT / RIGHT', 'A / D  or  LEFT / RIGHT'],
             ['JUMP', 'W  or  UP'],
             ['CROUCH', 'S  or  DOWN'],
-            ['HIGH PUNCH', 'J'],
-            ['LOW PUNCH', 'K'],
-            ['HIGH KICK', 'L'],
-            ['LOW KICK', '; (semicolon)'],
-            ['UPPERCUT', 'CROUCH + J'],
-            ['SPECIAL MOVE', 'SPACE'],
-            ['BLOCK', 'Hold BACK (away from opponent)']
+            ['HIGH PUNCH', 'H'],
+            ['LOW PUNCH', 'N'],
+            ['HIGH KICK', 'K'],
+            ['LOW KICK', 'M'],
+            ['UPPERCUT', 'H + N  (both punches)'],
+            ['SPECIAL MOVE', 'K + M  (both kicks)'],
+            ['BLOCK', 'J  (hold)']
         ];
 
         ctx.font = '15px Arial';

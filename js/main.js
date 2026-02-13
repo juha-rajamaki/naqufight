@@ -61,9 +61,11 @@ const Game = {
 
         // Input listeners (only prevent default for game keys)
         const GAME_KEYS = new Set([
-            'KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon',
+            'KeyA', 'KeyD', 'KeyW', 'KeyS',
+            'KeyH', 'KeyJ', 'KeyK', 'KeyN', 'KeyM',
             'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-            'Space', 'Enter', 'Tab', 'Escape'
+            'Enter', 'Tab', 'Escape',
+            'Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract'
         ]);
         window.addEventListener('keydown', e => {
             if (GAME_KEYS.has(e.code)) {
@@ -105,6 +107,14 @@ const Game = {
     // UPDATE
     // ========================
     update() {
+        // Music volume controls (work in all states)
+        if (this.justPressed('Equal') || this.justPressed('NumpadAdd')) {
+            Music.setVolume(Music.volume + 0.05);
+        }
+        if (this.justPressed('Minus') || this.justPressed('NumpadSubtract')) {
+            Music.setVolume(Music.volume - 0.05);
+        }
+
         switch (this.state) {
             case GameState.TITLE:
                 this.updateTitle();
@@ -247,21 +257,21 @@ const Game = {
 
     updateRoundStart() {
         this.stateTimer++;
-        // Phase 1: VS screen (frames 1-120)
+        // Phase 1: VS screen (frames 1-180, ~3 seconds)
         if (this.stateTimer === 1) {
             TTS.speak(`${this.player.data.displayName} versus ${this.opponent.data.displayName}`);
         }
-        // Phase 2: Round number (frames 121-170)
-        if (this.stateTimer === 121) {
+        // Phase 2: Round number (frames 181-300, ~2 seconds)
+        if (this.stateTimer === 181) {
             SFX.roundStart();
             TTS.speak(`Round ${this.currentRound}`);
         }
-        // Phase 3: FIGHT! (frames 171-210)
-        if (this.stateTimer === 171) {
+        // Phase 3: FIGHT! (frames 301-350)
+        if (this.stateTimer === 301) {
             SFX.fight();
             TTS.speak('Fight!', 1.2);
         }
-        if (this.stateTimer > 210) {
+        if (this.stateTimer > 350) {
             this.state = GameState.FIGHT;
         }
     },
@@ -341,6 +351,14 @@ const Game = {
             p.stopMoving();
         }
 
+        // Block (J) — explicit block button
+        if (this.keys['KeyJ']) {
+            p.isBlocking = true;
+        } else if (!moving) {
+            // Only unblock if not also blocking by moving back
+            p.isBlocking = false;
+        }
+
         // Crouch
         if (this.keys['KeyS'] || this.keys['ArrowDown']) {
             if (p.isGrounded) p.crouch();
@@ -357,32 +375,45 @@ const Game = {
             p.jump(jumpDir);
         }
 
-        // Attacks (with sound on attack start)
-        if (this.justPressed('KeyJ')) {
-            const wasCrouching = p.isCrouching;
-            p.tryHighPunch();
-            if (p.currentAttack) {
-                if (p.currentAttack === 'uppercut') SFX.whoosh();
-                else SFX.whoosh();
+        // Combo: H + N = Uppercut (both punches together)
+        if (this.justPressed('KeyH') && this.keys['KeyN'] ||
+            this.justPressed('KeyN') && this.keys['KeyH']) {
+            p.tryHighPunch(); // triggers uppercut when crouching, otherwise force it
+            if (!p.currentAttack || p.currentAttack !== 'uppercut') {
+                // Force uppercut even when standing
+                if (p.canAct() && p.isGrounded && !p.isJumping) {
+                    p.currentAttack = 'uppercut';
+                    p.attackFrame = 0;
+                    p.hasHitThisAttack = false;
+                    p.state = 'attack';
+                }
             }
-        }
-        if (this.justPressed('KeyK')) {
-            p.tryLowPunch();
             if (p.currentAttack) SFX.whoosh();
         }
-        if (this.justPressed('KeyL')) {
-            p.tryHighKick();
-            if (p.currentAttack) SFX.whoosh();
-        }
-        if (this.justPressed('Semicolon')) {
-            p.tryLowKick();
-            if (p.currentAttack) SFX.whoosh();
-        }
-
-        // Special (Space)
-        if (this.justPressed('Space')) {
+        // Combo: K + M = Special Move (both kicks together)
+        else if (this.justPressed('KeyK') && this.keys['KeyM'] ||
+                 this.justPressed('KeyM') && this.keys['KeyK']) {
             p.trySpecial();
             if (p.currentAttack === 'special') SFX.whoosh();
+        }
+        // Single attacks
+        else {
+            if (this.justPressed('KeyH')) {
+                p.tryHighPunch();
+                if (p.currentAttack) SFX.whoosh();
+            }
+            if (this.justPressed('KeyK')) {
+                p.tryHighKick();
+                if (p.currentAttack) SFX.whoosh();
+            }
+            if (this.justPressed('KeyN')) {
+                p.tryLowPunch();
+                if (p.currentAttack) SFX.whoosh();
+            }
+            if (this.justPressed('KeyM')) {
+                p.tryLowKick();
+                if (p.currentAttack) SFX.whoosh();
+            }
         }
     },
 
@@ -677,8 +708,8 @@ const Game = {
                 break;
 
             case GameState.ROUND_START:
-                if (this.stateTimer <= 120) {
-                    // VS screen
+                if (this.stateTimer <= 180) {
+                    // VS screen (~3 seconds)
                     Renderer.drawVsScreen(ctx, this.player, this.opponent, this.stateTimer);
                 } else {
                     Renderer.drawArena(ctx, this.frameCount);
@@ -686,7 +717,7 @@ const Game = {
                     this.opponent.draw(ctx);
                     Renderer.drawFightUI(ctx, this.player, this.opponent, this.roundTimer, this.frameCount);
 
-                    if (this.stateTimer < 171) {
+                    if (this.stateTimer < 301) {
                         Renderer.drawAnnouncement(ctx, `ROUND ${this.currentRound}`, null, this.frameCount);
                     } else {
                         Renderer.drawAnnouncement(ctx, 'FIGHT!', null, this.frameCount);
