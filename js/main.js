@@ -49,6 +49,10 @@ const Game = {
     // Sound tracking (to avoid duplicate triggers per frame)
     _soundsThisFrame: [],
 
+    // Slow-motion
+    slowmoCounter: 0,
+    slowmoRate: 10, // 10x slower during finish
+
     // Hitbox collision check
     boxOverlap(a, b) {
         return a.x < b.x + b.w && a.x + a.w > b.x &&
@@ -58,6 +62,11 @@ const Game = {
     init() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
+
+        // Initialize 3D scene
+        const threejsCanvas = document.getElementById('threejsCanvas');
+        Scene3D.init(threejsCanvas);
+        Scene3D.hide(); // Hidden until fight starts
 
         // Input listeners (only prevent default for game keys)
         const GAME_KEYS = new Set([
@@ -96,9 +105,28 @@ const Game = {
     // ========================
     loop() {
         this._soundsThisFrame = [];
-        this.update();
+
+        // Slow-motion during FINISH HIM (after dramatic pause)
+        const inSlowmo = this.state === GameState.FINISH_HIM && this.stateTimer >= 180;
+        let didUpdate = false;
+        if (inSlowmo) {
+            this.slowmoCounter++;
+            if (this.slowmoCounter >= this.slowmoRate) {
+                this.slowmoCounter = 0;
+                this.update();
+                didUpdate = true;
+            }
+        } else {
+            this.slowmoCounter = 0;
+            this.update();
+            didUpdate = true;
+        }
+
         this.draw();
-        this.prevKeys = { ...this.keys };
+        // Only consume key presses when update ran, so inputs aren't lost
+        if (didUpdate) {
+            this.prevKeys = { ...this.keys };
+        }
         this.frameCount++;
         requestAnimationFrame(() => this.loop());
     },
@@ -242,9 +270,14 @@ const Game = {
         this.roundTimer = this.roundTimerMax;
         this.state = GameState.ROUND_START;
         this.stateTimer = 0;
-        this.screenShake = 0; // Reset screen shake
+        this.screenShake = 0;
         Renderer.particles = [];
         Renderer.gibs = [];
+
+        // Init 3D models
+        this.player.initModel3D();
+        this.opponent.initModel3D();
+        Gibs3D.clearAll();
     },
 
     updateOpponentIntro() {
@@ -375,18 +408,24 @@ const Game = {
             p.jump(jumpDir);
         }
 
+        // Combo: H + K = Fatality Blow (punch + kick together) — for FINISH HIM
+        if (this.justPressed('KeyH') && this.keys['KeyK'] ||
+            this.justPressed('KeyK') && this.keys['KeyH']) {
+            if (p.canAct() && p.isGrounded) {
+                p.currentAttack = 'fatalityBlow';
+                p.attackFrame = 0;
+                p.hasHitThisAttack = false;
+            }
+            if (p.currentAttack) SFX.whoosh();
+        }
         // Combo: H + N = Uppercut (both punches together)
-        if (this.justPressed('KeyH') && this.keys['KeyN'] ||
+        else if (this.justPressed('KeyH') && this.keys['KeyN'] ||
             this.justPressed('KeyN') && this.keys['KeyH']) {
-            p.tryHighPunch(); // triggers uppercut when crouching, otherwise force it
-            if (!p.currentAttack || p.currentAttack !== 'uppercut') {
-                // Force uppercut even when standing
-                if (p.canAct() && p.isGrounded && !p.isJumping) {
-                    p.currentAttack = 'uppercut';
-                    p.attackFrame = 0;
-                    p.hasHitThisAttack = false;
-                    p.state = 'attack';
-                }
+            // Force uppercut even when standing
+            if (p.canAct() && p.isGrounded) {
+                p.currentAttack = 'uppercut';
+                p.attackFrame = 0;
+                p.hasHitThisAttack = false;
             }
             if (p.currentAttack) SFX.whoosh();
         }
@@ -446,6 +485,7 @@ const Game = {
             case 'jumpPunch': SFX.jumpPunch(); break;
             case 'jumpKick': SFX.jumpKick(); break;
             case 'special': SFX.special(); break;
+            case 'fatalityBlow': SFX.uppercut(); break;
             default: SFX.highPunch(); break;
         }
     },
@@ -469,7 +509,7 @@ const Game = {
                     this.playHitSound(pHitbox.attackName);
                     if (pHitbox.sweep) SFX.sweep();
                     if (pHitbox.launcher) SFX.knockdown();
-                    Renderer.spawnHitParticles(
+                    Gibs3D.spawnHitParticles(
                         (this.player.x + this.opponent.x) / 2,
                         pHitbox.y + pHitbox.h / 2,
                         8,
@@ -478,7 +518,7 @@ const Game = {
                     this.screenShake = pHitbox.launcher ? 8 : 4;
                 } else if (result === 'blocked') {
                     SFX.blocked();
-                    Renderer.spawnHitParticles(
+                    Gibs3D.spawnHitParticles(
                         (this.player.x + this.opponent.x) / 2,
                         pHitbox.y + pHitbox.h / 2,
                         4,
@@ -507,7 +547,7 @@ const Game = {
                     this.playHitSound(oHitbox.attackName);
                     if (oHitbox.sweep) SFX.sweep();
                     if (oHitbox.launcher) SFX.knockdown();
-                    Renderer.spawnHitParticles(
+                    Gibs3D.spawnHitParticles(
                         (this.player.x + this.opponent.x) / 2,
                         oHitbox.y + oHitbox.h / 2,
                         8,
@@ -516,7 +556,7 @@ const Game = {
                     this.screenShake = oHitbox.launcher ? 8 : 4;
                 } else if (result === 'blocked') {
                     SFX.blocked();
-                    Renderer.spawnHitParticles(
+                    Gibs3D.spawnHitParticles(
                         (this.player.x + this.opponent.x) / 2,
                         oHitbox.y + oHitbox.h / 2,
                         4,
@@ -541,7 +581,7 @@ const Game = {
 
         // If already exploded, wait then end round
         if (this.finishHimDone) {
-            Renderer.updateGibs();
+            Gibs3D.update();
             if (this.stateTimer > this.finishHimDoneAt + 120) {
                 this.endRound(winner);
             }
@@ -581,13 +621,24 @@ const Game = {
                 this.playHitSound(hitbox.attackName);
                 SFX.knockdown();
 
-                // Explode the loser into pieces!
-                Renderer.spawnGibs(loser.x, loser.y, loser.data.colors);
-                Renderer.spawnHitParticles(loser.x, loser.y - loser.height * 0.5, 20, '#FF0000');
+                // Different fatality based on attack used
+                const atkName = hitbox.attackName;
+                const dir = winner.facing === 'right' ? 1 : -1;
+                let fatalityType = 'explode';
+
+                if (atkName === 'highPunch') fatalityType = 'decapitate';
+                else if (atkName === 'highKick') fatalityType = 'kickdown';
+                else if (atkName === 'lowPunch') fatalityType = 'cuthalf';
+                else if (atkName === 'lowKick') fatalityType = 'loseleg';
+                else if (atkName === 'fatalityBlow') fatalityType = 'explode';
+
+                const colors = loser.data?.colors || { body: '#888', skin: '#F5CBA7', accent: '#CC0000' };
+                Gibs3D.spawnGibs(loser.x, loser.y, colors, fatalityType, dir);
+                Gibs3D.spawnHitParticles(loser.x, loser.y - loser.height * 0.5, 20, '#FF0000');
                 this.screenShake = 12;
                 this.finishHimDone = true;
                 this.finishHimDoneAt = this.stateTimer;
-                loser.x = -200; // move loser off screen (replaced by gibs)
+                loser.x = -200;
             }
         }
 
@@ -670,19 +721,49 @@ const Game = {
     // ========================
     // DRAW
     // ========================
+    // Check if current state should use 3D rendering
+    is3DState() {
+        if (this.state === GameState.FIGHT) return true;
+        if (this.state === GameState.FINISH_HIM) return true;
+        if (this.state === GameState.ROUND_END) return true;
+        if (this.state === GameState.ROUND_START && this.stateTimer > 180) return true;
+        if (this.state === GameState.CONTROLS && this.previousState === GameState.FIGHT) return true;
+        return false;
+    },
+
+    // Render 3D scene for fight states
+    render3D() {
+        this.player.draw3D(this.frameCount);
+        this.opponent.draw3D(this.frameCount);
+        Gibs3D.update();
+        Scene3D.setCameraShake(this.screenShake);
+        Scene3D.render(this.frameCount);
+    },
+
     draw() {
         const ctx = this.ctx;
+        const use3D = this.is3DState();
 
-        // Screen shake only during fight states
+        // Show/hide 3D canvas
+        if (use3D) {
+            Scene3D.show();
+        } else {
+            Scene3D.hide();
+        }
+
         ctx.save();
-        const isFightState = this.state === GameState.FIGHT ||
-                             this.state === GameState.FINISH_HIM ||
-                             this.state === GameState.ROUND_START;
-        if (this.screenShake > 0 && isFightState) {
-            ctx.translate(
-                (Math.random() - 0.5) * this.screenShake * 2,
-                (Math.random() - 0.5) * this.screenShake * 2
-            );
+
+        // Screen shake on 2D canvas (only for non-3D states that need it)
+        if (this.screenShake > 0 && !use3D) {
+            const isFightState = this.state === GameState.FIGHT ||
+                                 this.state === GameState.FINISH_HIM ||
+                                 this.state === GameState.ROUND_START;
+            if (isFightState) {
+                ctx.translate(
+                    (Math.random() - 0.5) * this.screenShake * 2,
+                    (Math.random() - 0.5) * this.screenShake * 2
+                );
+            }
         }
 
         switch (this.state) {
@@ -709,12 +790,11 @@ const Game = {
 
             case GameState.ROUND_START:
                 if (this.stateTimer <= 180) {
-                    // VS screen (~3 seconds)
                     Renderer.drawVsScreen(ctx, this.player, this.opponent, this.stateTimer);
                 } else {
-                    Renderer.drawArena(ctx, this.frameCount);
-                    this.player.draw(ctx);
-                    this.opponent.draw(ctx);
+                    // 3D arena + fighters
+                    this.render3D();
+                    ctx.clearRect(0, 0, 800, 600);
                     Renderer.drawFightUI(ctx, this.player, this.opponent, this.roundTimer, this.frameCount);
 
                     if (this.stateTimer < 301) {
@@ -726,19 +806,14 @@ const Game = {
                 break;
 
             case GameState.FIGHT:
-                Renderer.drawArena(ctx, this.frameCount);
-                this.player.draw(ctx);
-                this.opponent.draw(ctx);
-                Renderer.updateAndDrawParticles(ctx);
+                this.render3D();
+                ctx.clearRect(0, 0, 800, 600);
                 Renderer.drawFightUI(ctx, this.player, this.opponent, this.roundTimer, this.frameCount);
                 break;
 
             case GameState.FINISH_HIM:
-                Renderer.drawArena(ctx, this.frameCount);
-                this.player.draw(ctx);
-                this.opponent.draw(ctx);
-                Renderer.drawGibs(ctx);
-                Renderer.updateAndDrawParticles(ctx);
+                this.render3D();
+                ctx.clearRect(0, 0, 800, 600);
                 Renderer.drawFightUI(ctx, this.player, this.opponent, this.roundTimer, this.frameCount);
                 if (!this.finishHimDone) {
                     Renderer.drawFinishHim(ctx, this.frameCount);
@@ -746,10 +821,8 @@ const Game = {
                 break;
 
             case GameState.ROUND_END: {
-                Renderer.drawArena(ctx, this.frameCount);
-                this.player.draw(ctx);
-                this.opponent.draw(ctx);
-                Renderer.updateAndDrawParticles(ctx);
+                this.render3D();
+                ctx.clearRect(0, 0, 800, 600);
                 Renderer.drawFightUI(ctx, this.player, this.opponent, this.roundTimer, this.frameCount);
                 const roundWinner = this.player.health > this.opponent.health ? this.player : this.opponent;
                 Renderer.drawAnnouncement(ctx, `${roundWinner.data.displayName} WINS`, `Round ${this.currentRound}`, this.frameCount);
@@ -776,9 +849,8 @@ const Game = {
 
             case GameState.CONTROLS:
                 if (this.previousState === GameState.FIGHT) {
-                    Renderer.drawArena(ctx, this.frameCount);
-                    this.player.draw(ctx);
-                    this.opponent.draw(ctx);
+                    this.render3D();
+                    ctx.clearRect(0, 0, 800, 600);
                     Renderer.drawFightUI(ctx, this.player, this.opponent, this.roundTimer, this.frameCount);
                 } else {
                     Renderer.drawCharacterSelect(ctx, this.selectedCharIndex, this.frameCount);

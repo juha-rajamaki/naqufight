@@ -73,11 +73,64 @@ const Renderer = {
         ctx.font = '20px Arial';
         ctx.fillText('CHOOSE YOUR FIGHTER', 400, 250);
 
+        // Controls display
+        ctx.fillStyle = 'rgba(30, 30, 30, 0.85)';
+        ctx.fillRect(150, 280, 500, 170);
+        ctx.strokeStyle = '#CC0000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(150, 280, 500, 170);
+
+        ctx.fillStyle = '#CC0000';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('CONTROLS', 400, 298);
+
+        const leftCol = [
+            ['MOVE', 'A / D'],
+            ['JUMP', 'W'],
+            ['CROUCH', 'S'],
+            ['BLOCK', 'J (hold)'],
+        ];
+        const rightCol = [
+            ['HIGH PUNCH', 'H'],
+            ['HIGH KICK', 'K'],
+            ['LOW PUNCH', 'N'],
+            ['LOW KICK', 'M'],
+            ['UPPERCUT', 'H + N'],
+            ['SPECIAL', 'K + M'],
+            ['FATALITY', 'H + K'],
+        ];
+
+        ctx.font = '12px Arial';
+        leftCol.forEach((c, i) => {
+            const cy = 318 + i * 18;
+            ctx.fillStyle = '#FFD700';
+            ctx.textAlign = 'right';
+            ctx.fillText(c[0], 290, cy);
+            ctx.fillStyle = '#CCC';
+            ctx.textAlign = 'left';
+            ctx.fillText(c[1], 298, cy);
+        });
+        rightCol.forEach((c, i) => {
+            const cy = 318 + i * 18;
+            ctx.fillStyle = '#FFD700';
+            ctx.textAlign = 'right';
+            ctx.fillText(c[0], 510, cy);
+            ctx.fillStyle = '#CCC';
+            ctx.textAlign = 'left';
+            ctx.fillText(c[1], 518, cy);
+        });
+
+        ctx.fillStyle = '#666';
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('+/- : Music Volume  |  TAB : Show Controls During Fight', 400, 442);
+
         // Flashing "Press Enter"
         if (Math.floor(frameCount / 30) % 2 === 0) {
             ctx.fillStyle = '#FFF';
             ctx.font = '24px Arial';
-            ctx.fillText('PRESS ENTER TO START', 400, 450);
+            ctx.fillText('PRESS ENTER TO START', 400, 475);
         }
 
         // Footer
@@ -231,6 +284,7 @@ const Renderer = {
             ['LOW KICK', 'M'],
             ['UPPERCUT', 'H + N'],
             ['SPECIAL', 'K + M'],
+            ['FATALITY', 'H + K'],
             ['BLOCK', 'J (hold)'],
         ];
 
@@ -579,49 +633,152 @@ const Renderer = {
     // ========================
     gibs: [],
 
-    spawnGibs(x, y, colors) {
+    spawnGibs(x, y, colors, fatalityType, dir) {
         this.gibs = [];
         const bodyColor = colors.body || '#888';
         const skinColor = colors.skin || '#F5CBA7';
         const accentColor = colors.accent || '#CC0000';
+        const d = dir || 1;
 
-        // Body parts: head, torso, left arm, right arm, left leg, right leg
         const parts = [
-            { label: 'head',     color: skinColor,   w: 20, h: 20, ox: 0,   oy: -100, rot: 0 },
-            { label: 'torso',    color: bodyColor,    w: 36, h: 40, ox: 0,   oy: -60,  rot: 0 },
-            { label: 'larm',     color: bodyColor,    w: 10, h: 28, ox: -25, oy: -60,  rot: 0 },
-            { label: 'rarm',     color: bodyColor,    w: 10, h: 28, ox: 25,  oy: -60,  rot: 0 },
-            { label: 'lleg',     color: '#2C3E50',    w: 14, h: 35, ox: -12, oy: -20,  rot: 0 },
-            { label: 'rleg',     color: '#2C3E50',    w: 14, h: 35, ox: 12,  oy: -20,  rot: 0 },
-            { label: 'accessory', color: accentColor, w: 16, h: 10, ox: 0,   oy: -110, rot: 0 },
+            { label: 'head',      color: skinColor,   w: 20, h: 20, ox: 0,   oy: -100 },
+            { label: 'torso',     color: bodyColor,    w: 36, h: 40, ox: 0,   oy: -60  },
+            { label: 'larm',      color: bodyColor,    w: 10, h: 28, ox: -25, oy: -60  },
+            { label: 'rarm',      color: bodyColor,    w: 10, h: 28, ox: 25,  oy: -60  },
+            { label: 'lleg',      color: '#2C3E50',    w: 14, h: 35, ox: -12, oy: -20  },
+            { label: 'rleg',      color: '#2C3E50',    w: 14, h: 35, ox: 12,  oy: -20  },
+            { label: 'accessory', color: accentColor,  w: 16, h: 10, ox: 0,   oy: -110 },
         ];
 
-        parts.forEach(part => {
+        const addGib = (part, vx, vy, rotSpeed) => {
             this.gibs.push({
-                x: x + part.ox,
-                y: y + part.oy,
-                w: part.w,
-                h: part.h,
-                color: part.color,
-                vx: (Math.random() - 0.5) * 14 + part.ox * 0.1,
-                vy: -Math.random() * 12 - 5,
-                rot: (Math.random() - 0.5) * 0.3,
-                rotSpeed: (Math.random() - 0.5) * 0.4,
+                x: x + part.ox, y: y + part.oy,
+                w: part.w, h: part.h, color: part.color,
+                vx, vy,
+                rot: (Math.random() - 0.5) * 0.2,
+                rotSpeed: rotSpeed || (Math.random() - 0.5) * 0.2,
                 grounded: false
             });
-        });
+        };
+
+        const addBlood = (bx, by, count, spread) => {
+            for (let i = 0; i < count; i++) {
+                this.gibs.push({
+                    x: x + bx + (Math.random() - 0.5) * 10,
+                    y: y + by,
+                    w: 3 + Math.random() * 3, h: 3 + Math.random() * 3,
+                    color: Math.random() > 0.3 ? '#880000' : '#AA0000',
+                    vx: (Math.random() - 0.5) * spread,
+                    vy: -Math.random() * (spread * 0.8) - 2,
+                    rot: 0, rotSpeed: 0,
+                    grounded: false
+                });
+            }
+        };
+
+        switch (fatalityType) {
+            case 'decapitate':
+                // Head flies off upward, body crumbles in place
+                parts.forEach(part => {
+                    if (part.label === 'head' || part.label === 'accessory') {
+                        addGib(part,
+                            d * (8 + Math.random() * 6),
+                            -12 - Math.random() * 5,
+                            (Math.random() - 0.5) * 0.8
+                        );
+                    } else {
+                        addGib(part,
+                            (Math.random() - 0.5) * 2,
+                            -Math.random() * 2,
+                            (Math.random() - 0.5) * 0.1
+                        );
+                    }
+                });
+                addBlood(0, -85, 10, 6);
+                break;
+
+            case 'kickdown':
+                // All pieces fly backward, low trajectory — kicked across the stage
+                parts.forEach(part => {
+                    addGib(part,
+                        d * (8 + Math.random() * 6),
+                        -2 - Math.random() * 4,
+                        d * (0.1 + Math.random() * 0.3)
+                    );
+                });
+                addBlood(0, -60, 6, 8);
+                break;
+
+            case 'cuthalf':
+                // Upper body flies up/back, lower body stays in place
+                parts.forEach(part => {
+                    if (part.label === 'lleg' || part.label === 'rleg') {
+                        addGib(part,
+                            (Math.random() - 0.5) * 1.5,
+                            -Math.random() * 1,
+                            (Math.random() - 0.5) * 0.05
+                        );
+                    } else {
+                        addGib(part,
+                            d * (2 + Math.random() * 3),
+                            -8 - Math.random() * 5,
+                            (Math.random() - 0.5) * 0.3
+                        );
+                    }
+                });
+                addBlood(0, -40, 12, 8);
+                break;
+
+            case 'loseleg':
+                // One leg flies off, body collapses to that side
+                parts.forEach(part => {
+                    if (part.label === 'rleg') {
+                        addGib(part,
+                            d * (7 + Math.random() * 5),
+                            -6 - Math.random() * 4,
+                            (Math.random() - 0.5) * 0.6
+                        );
+                    } else {
+                        addGib(part,
+                            -d * (Math.random() * 2),
+                            -Math.random() * 3,
+                            (Math.random() - 0.5) * 0.1
+                        );
+                    }
+                });
+                addBlood(12, -20, 8, 5);
+                break;
+
+            case 'explode':
+            default:
+                // Full explosion — all pieces fly everywhere
+                parts.forEach(part => {
+                    addGib(part,
+                        (Math.random() - 0.5) * 14 + part.ox * 0.1,
+                        -Math.random() * 12 - 5,
+                        (Math.random() - 0.5) * 0.4
+                    );
+                });
+                break;
+        }
     },
 
     updateGibs() {
-        this.gibs.forEach(g => {
-            if (g.grounded) return;
+        let writeIdx = 0;
+        for (let i = 0; i < this.gibs.length; i++) {
+            const g = this.gibs[i];
+            if (g.grounded) {
+                g.groundedTime = (g.groundedTime || 0) + 1;
+                if (g.groundedTime > 300) continue; // Remove after ~5 seconds
+                this.gibs[writeIdx++] = g;
+                continue;
+            }
             g.vy += 0.5;
             g.x += g.vx;
             g.y += g.vy;
             g.rot += g.rotSpeed;
             g.vx *= 0.99;
 
-            // Hit the ground
             if (g.y > GROUND_Y) {
                 g.y = GROUND_Y;
                 g.vy *= -0.3;
@@ -630,12 +787,14 @@ const Renderer = {
                 if (Math.abs(g.vy) < 1) {
                     g.grounded = true;
                     g.vy = 0;
+                    g.groundedTime = 0;
                 }
             }
-            // Stage walls
             if (g.x < STAGE_LEFT) { g.x = STAGE_LEFT; g.vx *= -0.5; }
             if (g.x > STAGE_RIGHT) { g.x = STAGE_RIGHT; g.vx *= -0.5; }
-        });
+            this.gibs[writeIdx++] = g;
+        }
+        this.gibs.length = writeIdx;
     },
 
     drawGibs(ctx) {
@@ -830,6 +989,7 @@ const Renderer = {
             ['LOW KICK', 'M'],
             ['UPPERCUT', 'H + N  (both punches)'],
             ['SPECIAL MOVE', 'K + M  (both kicks)'],
+            ['FATALITY', 'H + K  (punch + kick)'],
             ['BLOCK', 'J  (hold)']
         ];
 

@@ -11,21 +11,62 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            width: 100vw;
+            height: 100vh;
             overflow: hidden;
         }
-        canvas {
-            border: 2px solid #333;
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            transform-origin: center center;
+        }
+        #threejsCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 800px;
+            height: 600px;
+        }
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 800px;
+            height: 600px;
             image-rendering: pixelated;
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <script src="js/characters.js?v=5"></script>
-    <script src="js/sounds.js?v=5"></script>
-    <script src="js/fighter.js?v=5"></script>
-    <script src="js/renderer.js?v=5"></script>
-    <script src="js/main.js?v=5"></script>
+    <div id="game-container">
+        <canvas id="threejsCanvas" width="800" height="600"></canvas>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"
+            integrity="sha384-RRHfJ6w1mTlKUBMYT/hvnRiOzEB/vyRV3DrQOseb6oYfvaZSfdd0byS4bHps0k2R"
+            crossorigin="anonymous"></script>
+    <script>
+        (function() {
+            var container = document.getElementById('game-container');
+            function resize() {
+                var scaleX = window.innerWidth / 800;
+                var scaleY = window.innerHeight / 600;
+                var scale = Math.min(scaleX, scaleY);
+                container.style.transform = 'scale(' + scale + ')';
+            }
+            window.addEventListener('resize', resize);
+            resize();
+        })();
+    </script>
+    <script src="js/characters.js?v=13"></script>
+    <script src="js/sounds.js?v=13"></script>
+    <script src="js/scene3d.js?v=13"></script>
+    <script src="js/models3d.js?v=13"></script>
+    <script src="js/poses3d.js?v=13"></script>
+    <script src="js/gibs3d.js?v=13"></script>
+    <script src="js/fighter.js?v=13"></script>
+    <script src="js/renderer.js?v=13"></script>
+    <script src="js/main.js?v=13"></script>
 </body>
 </html>

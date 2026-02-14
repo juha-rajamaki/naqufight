@@ -7,7 +7,8 @@ const ATTACKS = {
     uppercut:   { startup: 5,  active: 4,  recovery: 18, damage: 14, knockback: 6,  hitstun: 22, hitboxY: -0.2, hitboxH: 0.3, range: 0.5, type: 'high', launcher: true },
     jumpPunch:  { startup: 3,  active: 6,  recovery: 5,  damage: 10, knockback: 3,  hitstun: 14, hitboxY: 0.0, hitboxH: 0.2, range: 0.5, type: 'mid' },
     jumpKick:   { startup: 4,  active: 7,  recovery: 5,  damage: 11, knockback: 4,  hitstun: 15, hitboxY: 0.0, hitboxH: 0.25, range: 0.55, type: 'mid' },
-    special:    { startup: 10, active: 8,  recovery: 20, damage: 0,  knockback: 8,  hitstun: 25, hitboxY: -0.1, hitboxH: 0.3, range: 0.7, type: 'mid' }
+    special:    { startup: 10, active: 8,  recovery: 20, damage: 0,  knockback: 8,  hitstun: 25, hitboxY: -0.1, hitboxH: 0.3, range: 0.7, type: 'mid' },
+    fatalityBlow: { startup: 4, active: 6, recovery: 15, damage: 20, knockback: 10, hitstun: 30, hitboxY: -0.15, hitboxH: 0.4, range: 0.65, type: 'mid', launcher: true }
 };
 
 const GRAVITY = 0.6;
@@ -536,6 +537,15 @@ class Fighter {
         ctx.save();
         const drawX = this.x + this.shakeX;
         const drawY = this.y;
+        const atk = this.currentAttack;
+
+        // Drop shadow on ground
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(drawX, GROUND_Y + 2, this.width * 0.4, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
 
         // Flash white when hit
         if (this.flashTimer > 0 && this.flashTimer % 2 === 0) {
@@ -548,13 +558,12 @@ class Fighter {
             ctx.translate(drawX, drawY);
             ctx.rotate(Math.PI / 2 * (this.facing === 'right' ? 1 : -1));
             ctx.translate(-drawX, -drawY);
-            this.data.draw(ctx, drawX, drawY - this.height * 0.5, this.width, this.height, this.facing, this.state);
+            this.data.draw(ctx, drawX, drawY - this.height * 0.5, this.width, this.height, this.facing, this.state, atk);
             ctx.restore();
         } else if (this.isCrouching) {
-            // Draw shorter when crouching
-            this.data.draw(ctx, drawX, drawY + this.height * 0.2, this.width, this.height * 0.7, this.facing, this.state);
+            this.data.draw(ctx, drawX, drawY + this.height * 0.2, this.width, this.height * 0.7, this.facing, this.state, atk);
         } else {
-            this.data.draw(ctx, drawX, drawY, this.width, this.height, this.facing, this.state);
+            this.data.draw(ctx, drawX, drawY, this.width, this.height, this.facing, this.state, atk);
         }
 
         // Super armor glow
@@ -567,5 +576,58 @@ class Fighter {
         }
 
         ctx.restore();
+    }
+
+    // ========================
+    // 3D MODEL METHODS
+    // ========================
+    initModel3D() {
+        this.removeModel3D();
+        this.model3d = Models3D.createModel(this.charName);
+        if (this.model3d) {
+            Scene3D.scene.add(this.model3d.root);
+        }
+    }
+
+    removeModel3D() {
+        if (this.model3d) {
+            Scene3D.scene.remove(this.model3d.root);
+            // Dispose all geometries and materials to prevent GPU memory leak
+            this.model3d.root.traverse(obj => {
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                    if (obj.material.map) obj.material.map.dispose();
+                    obj.material.dispose();
+                }
+            });
+            this.model3d = null;
+        }
+    }
+
+    draw3D(frameCount) {
+        if (!this.model3d) return;
+
+        const pos = Scene3D.mapGameTo3D(this.x + this.shakeX, this.y);
+        this.model3d.root.position.set(pos.x, 0, pos.z);
+
+        // Facing: right = PI/2 (face +X), left = -PI/2 (face -X)
+        const targetRotY = this.facing === 'left' ? -Math.PI / 2 : Math.PI / 2;
+        const bodyRot = this.model3d.bodyGroup.rotation;
+        bodyRot.y += (targetRotY - bodyRot.y) * 0.3;
+
+        // Apply pose
+        Poses3D.applyPose(this.model3d.parts, this, frameCount);
+
+        // Flash white when hit
+        if (this.flashTimer > 0 && this.flashTimer % 2 === 0) {
+            Models3D.setEmissive(this.model3d.parts, 0xFFFFFF, 0.6);
+        } else if (this.superArmor) {
+            Models3D.setEmissive(this.model3d.parts, 0xFFD700, 0.3);
+        } else {
+            Models3D.setEmissive(this.model3d.parts, 0x000000, 0);
+        }
+
+        // Show/hide model (for loser moved offscreen during fatality)
+        this.model3d.root.visible = (this.x > -100 && this.x < 900);
     }
 }
